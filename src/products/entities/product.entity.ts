@@ -1,4 +1,10 @@
-import { BeforeInsert, Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  BeforeInsert,
+  BeforeUpdate,
+  Column,
+  Entity,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 @Entity({ name: 'products' })
 export class Product {
@@ -26,6 +32,10 @@ export class Product {
   @Column('text')
   gender: string;
 
+  @Column('text', { array: true })
+  tags: string[];
+
+  @BeforeUpdate()
   @BeforeInsert()
   buildProductProperties() {
     if (!this.slug) {
