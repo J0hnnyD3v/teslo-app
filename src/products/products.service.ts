@@ -5,7 +5,7 @@ import { isUUID } from 'class-validator';
 
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { Product } from './entities/product.entity';
+import { Product, ProductImage } from './entities';
 import { HandleError } from 'src/decorators/error-handler.decorator';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
 
@@ -14,11 +14,17 @@ export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly productsRepository: Repository<Product>,
+    @InjectRepository(ProductImage)
+    private readonly productImageRepository: Repository<ProductImage>,
   ) {}
 
   @HandleError()
   async create(createProductDto: CreateProductDto) {
-    const product = this.productsRepository.create(createProductDto);
+    const { images = [], ...productDetails } = createProductDto;
+    const product = this.productsRepository.create({
+      ...productDetails,
+      images: images.map((img) => this.productImageRepository.create({ url: img })),
+    });
     await this.productsRepository.save(product);
     return { product };
   }
@@ -28,7 +34,9 @@ export class ProductsService {
     const products = await this.productsRepository.find({
       take: limit,
       skip: offset,
-      // TODO: relaciones en tablas
+      relations: {
+        images: true,
+      },
     });
     return { products };
   }
@@ -45,12 +53,13 @@ export class ProductsService {
     if (isUUID(searchTerm)) {
       product = await this.productsRepository.findOneBy({ id: searchTerm });
     } else {
-      const queryBuilder = this.productsRepository.createQueryBuilder();
+      const queryBuilder = this.productsRepository.createQueryBuilder('product');
       product = await queryBuilder
         .where('LOWER(title) =:title OR slug =:slug', {
           title: searchTerm.toLowerCase(),
           slug: searchTerm,
         })
+        .leftJoinAndSelect('product.images', 'images')
         .getOne();
     }
     if (!product) throw new NotFoundException('Product not found');
@@ -63,6 +72,7 @@ export class ProductsService {
     const product = await this.productsRepository.preload({
       id,
       ...updateProductDto,
+      images: [],
     });
     if (!product) throw new NotFoundException('Product not found');
     await this.productsRepository.save(product);
