@@ -11,14 +11,14 @@ export class ErrorHandlerService {
   constructor(private readonly logger: Logger) {}
 
   handle(error: any) {
-    console.log(
-      '==========================',
-      Object.prototype.toString.call(error),
-    );
+    console.log('==========================', Object.prototype.toString.call(error));
     if (error?.code) {
       switch (error.code) {
         case '23505':
           throw new BadRequestException(error?.detail || '');
+        case '42P01':
+          this.logger.verbose(error);
+          throw new InternalServerErrorException('Unexpected error');
       }
     }
 

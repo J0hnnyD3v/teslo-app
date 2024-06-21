@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, QueryRunner, Repository } from 'typeorm';
 import { isUUID } from 'class-validator';
 
 import { CreateProductDto } from './dto/create-product.dto';
@@ -11,12 +11,17 @@ import { PaginationDto } from 'src/common/dtos/pagination.dto';
 
 @Injectable()
 export class ProductsService {
+  private queryRunner!: QueryRunner;
+
   constructor(
     @InjectRepository(Product)
     private readonly productsRepository: Repository<Product>,
     @InjectRepository(ProductImage)
     private readonly productImageRepository: Repository<ProductImage>,
-  ) {}
+    private readonly dataSource: DataSource,
+  ) {
+    this.queryRunner = this.dataSource.createQueryRunner();
+  }
 
   @HandleError()
   async create(createProductDto: CreateProductDto) {
@@ -29,6 +34,7 @@ export class ProductsService {
     return { product };
   }
 
+  @HandleError()
   async findAll(paginationDto: PaginationDto) {
     const { limit = 10, offset = 0 } = paginationDto;
     const products = await this.productsRepository.find({
@@ -69,13 +75,32 @@ export class ProductsService {
 
   @HandleError()
   async update(id: string, updateProductDto: UpdateProductDto) {
-    const product = await this.productsRepository.preload({
-      id,
-      ...updateProductDto,
-      images: [],
-    });
+    const { images, ...updateProductDtoDetails } = updateProductDto;
+    const product = await this.productsRepository.preload({ id, ...updateProductDtoDetails });
+
     if (!product) throw new NotFoundException('Product not found');
-    await this.productsRepository.save(product);
+
+    /* Create a query runner to execute multiple queries in a single transaction */
+    this.queryRunner = this.dataSource.createQueryRunner();
+    await this.queryRunner.connect();
+    await this.queryRunner.startTransaction();
+
+    if (images?.length) {
+      /* delete all images related to the product, it needs target or entity and criteria */
+      await this.queryRunner.manager.delete(ProductImage, { product: { id } });
+
+      product.images = images.map((img) => this.productImageRepository.create({ url: img }));
+    } else {
+      product.images = await this.productImageRepository.findBy({ product: { id } });
+    }
+
+    /* just save the product */
+    await this.queryRunner.manager.save(product);
+    // await this.productsRepository.save(product);
+
+    await this.queryRunner.commitTransaction();
+    await this.queryRunner.release();
+
     return { product };
   }
 

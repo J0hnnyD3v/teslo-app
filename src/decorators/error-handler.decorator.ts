@@ -5,7 +5,9 @@ export function HandleError() {
   const injectErrorHandlerService = Inject(ErrorHandlerService);
 
   return function (target: any, key: string, descriptor: PropertyDescriptor) {
-    injectErrorHandlerService(target, 'errorHandlerService'); // this is the same as using constructor(private readonly logger: LoggerService) in a class
+    // this is the same as using constructor(private readonly logger: LoggerService) in a class
+    injectErrorHandlerService(target, 'errorHandlerService');
+
     // Keep the original method reference
     const originalMethod = descriptor.value;
 
@@ -13,8 +15,11 @@ export function HandleError() {
       try {
         return await originalMethod.apply(this, args);
       } catch (error: any) {
-        const errorHandlerService: ErrorHandlerService =
-          this.errorHandlerService;
+        if (this?.queryRunner && this?.queryRunner?.isTransactionActive) {
+          this.queryRunner.rollbackTransaction();
+          this.queryRunner.release();
+        }
+        const errorHandlerService: ErrorHandlerService = this.errorHandlerService;
         errorHandlerService.handle(error);
 
         throw error;
