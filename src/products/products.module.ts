@@ -9,9 +9,7 @@ import { Product, ProductImage } from './entities';
 @Module({
   controllers: [ProductsController],
   providers: [ProductsService, Logger],
-  imports: [
-    ErrorHandlerModule,
-    TypeOrmModule.forFeature([Product, ProductImage]),
-  ],
+  imports: [ErrorHandlerModule, TypeOrmModule.forFeature([Product, ProductImage])],
+  exports: [ProductsService, TypeOrmModule],
 })
 export class ProductsModule {}

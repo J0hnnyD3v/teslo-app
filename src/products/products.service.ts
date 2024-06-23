@@ -109,4 +109,16 @@ export class ProductsService {
     const { product } = await this.findOne(id);
     await this.productsRepository.remove(product);
   }
+
+  @HandleError()
+  async deleteAllProducts() {
+    const query = this.productsRepository.createQueryBuilder('product');
+    return await query.delete().where({}).execute();
+    // try {
+    //   const products = await query.getMany();
+    //   await this.productsRepository.remove(products);
+    // } catch (error) {
+    //   throw new NotFoundException('Products not found');
+    // }
+  }
 }
