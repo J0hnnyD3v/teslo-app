@@ -8,6 +8,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { Product, ProductImage } from './entities';
 import { HandleError } from 'src/decorators/error-handler.decorator';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
+import { User } from 'src/user/entities/user.entity';
 
 @Injectable()
 export class ProductsService {
@@ -24,11 +25,12 @@ export class ProductsService {
   }
 
   @HandleError()
-  async create(createProductDto: CreateProductDto) {
+  async create(createProductDto: CreateProductDto, user: User) {
     const { images = [], ...productDetails } = createProductDto;
     const product = this.productsRepository.create({
       ...productDetails,
       images: images.map((img) => this.productImageRepository.create({ url: img })),
+      user,
     });
     await this.productsRepository.save(product);
     return { product };
@@ -74,7 +76,7 @@ export class ProductsService {
   }
 
   @HandleError()
-  async update(id: string, updateProductDto: UpdateProductDto) {
+  async update(id: string, updateProductDto: UpdateProductDto, user: User) {
     const { images, ...updateProductDtoDetails } = updateProductDto;
     const product = await this.productsRepository.preload({ id, ...updateProductDtoDetails });
 
@@ -94,6 +96,7 @@ export class ProductsService {
       product.images = await this.productImageRepository.findBy({ product: { id } });
     }
 
+    product.user = user;
     /* just save the product */
     await this.queryRunner.manager.save(product);
     // await this.productsRepository.save(product);
