@@ -11,7 +11,9 @@ import { GetUser } from './decorators/get-user.decorator';
 import { User } from 'src/user/entities/user.entity';
 import { ValidRoles } from './interfaces';
 import { Auth } from './decorators';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
